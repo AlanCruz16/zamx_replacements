@@ -5,12 +5,17 @@ import sgMail from '@sendgrid/mail';
 // Initialize SendGrid with your API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
-const formSchema = z.object({
+const productSchema = z.object({
     articleNumber: z.string().min(1),
     model: z.string().min(1),
     quantity: z.number().min(1),
     deliveryPlace: z.string().min(1),
-    comments: z.string().optional()
+    comments: z.string().optional(),
+});
+
+const formSchema = z.object({
+    product1: productSchema,
+    product2: productSchema.optional(),
 });
 
 export async function POST(request: Request) {
@@ -20,18 +25,29 @@ export async function POST(request: Request) {
         // Validate the request body
         const validatedData = formSchema.parse(body);
 
-        // Create email content
+        // Create email content with conditional second product
         const msg = {
             to: 'adagocd@gmail.com',
             from: 'adagocd@gmail.com', // Replace with your SendGrid verified sender
             subject: 'New Quotation Request',
             html: `
                 <h2>New Quotation Request</h2>
-                <p><strong>Article Number:</strong> ${validatedData.articleNumber}</p>
-                <p><strong>Model:</strong> ${validatedData.model}</p>
-                <p><strong>Quantity:</strong> ${validatedData.quantity}</p>
-                <p><strong>Delivery Place:</strong> ${validatedData.deliveryPlace}</p>
-                ${validatedData.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.comments}</p>` : ''}
+                
+                <h3>Product 1</h3>
+                <p><strong>Article Number:</strong> ${validatedData.product1.articleNumber}</p>
+                <p><strong>Model:</strong> ${validatedData.product1.model}</p>
+                <p><strong>Quantity:</strong> ${validatedData.product1.quantity}</p>
+                <p><strong>Delivery Place:</strong> ${validatedData.product1.deliveryPlace}</p>
+                ${validatedData.product1.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.product1.comments}</p>` : ''}
+                
+                ${validatedData.product2 ? `
+                    <h3>Product 2</h3>
+                    <p><strong>Article Number:</strong> ${validatedData.product2.articleNumber}</p>
+                    <p><strong>Model:</strong> ${validatedData.product2.model}</p>
+                    <p><strong>Quantity:</strong> ${validatedData.product2.quantity}</p>
+                    <p><strong>Delivery Place:</strong> ${validatedData.product2.deliveryPlace}</p>
+                    ${validatedData.product2.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.product2.comments}</p>` : ''}
+                ` : ''}
             `,
         };
 
