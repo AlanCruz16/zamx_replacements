@@ -1,3 +1,4 @@
+// route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import sgMail from '@sendgrid/mail';
@@ -13,19 +14,49 @@ const productSchema = z.object({
     comments: z.string().optional(),
 });
 
-const formSchema = z.object({
-    product1: productSchema,
-    product2: productSchema.optional(),
-});
-
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const formData = await request.formData();
 
-        // Validate the request body
-        const validatedData = formSchema.parse(body);
+        // Parse product data from FormData
+        const product1 = JSON.parse(formData.get('product1') as string);
+        const product2 = formData.has('product2') ? JSON.parse(formData.get('product2') as string) : undefined;
 
-        // Create email content with conditional second product
+        // Get image files if they exist
+        const product1Image = formData.get('product1Image') as File | null;
+        const product2Image = formData.get('product2Image') as File | null;
+
+        // Validate the product data
+        const validatedProduct1 = productSchema.parse(product1);
+        const validatedProduct2 = product2 ? productSchema.parse(product2) : undefined;
+
+        // Prepare email attachments
+        const attachments: { content: string, filename: string, type: string, disposition: string }[] = [];
+
+        // Add images to attachments if they exist
+        if (product1Image) {
+            const buffer = await product1Image.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString('base64');
+            attachments.push({
+                content: base64,
+                filename: product1Image.name,
+                type: product1Image.type,
+                disposition: 'attachment',
+            });
+        }
+
+        if (product2Image) {
+            const buffer = await product2Image.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString('base64');
+            attachments.push({
+                content: base64,
+                filename: product2Image.name,
+                type: product2Image.type,
+                disposition: 'attachment',
+            });
+        }
+
+        // Create email content
         const msg = {
             to: 'adagocd@gmail.com',
             from: 'adagocd@gmail.com', // Replace with your SendGrid verified sender
@@ -34,21 +65,24 @@ export async function POST(request: Request) {
                 <h2>New Quotation Request</h2>
                 
                 <h3>Product 1</h3>
-                <p><strong>Article Number:</strong> ${validatedData.product1.articleNumber}</p>
-                <p><strong>Model:</strong> ${validatedData.product1.model}</p>
-                <p><strong>Quantity:</strong> ${validatedData.product1.quantity}</p>
-                <p><strong>Delivery Place:</strong> ${validatedData.product1.deliveryPlace}</p>
-                ${validatedData.product1.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.product1.comments}</p>` : ''}
+                <p><strong>Article Number:</strong> ${validatedProduct1.articleNumber}</p>
+                <p><strong>Model:</strong> ${validatedProduct1.model}</p>
+                <p><strong>Quantity:</strong> ${validatedProduct1.quantity}</p>
+                <p><strong>Delivery Place:</strong> ${validatedProduct1.deliveryPlace}</p>
+                ${validatedProduct1.comments ? `<p><strong>Additional Comments:</strong> ${validatedProduct1.comments}</p>` : ''}
+                ${product1Image ? `<p><strong>Image Attached:</strong> ${product1Image.name}</p>` : ''}
                 
-                ${validatedData.product2 ? `
+                ${validatedProduct2 ? `
                     <h3>Product 2</h3>
-                    <p><strong>Article Number:</strong> ${validatedData.product2.articleNumber}</p>
-                    <p><strong>Model:</strong> ${validatedData.product2.model}</p>
-                    <p><strong>Quantity:</strong> ${validatedData.product2.quantity}</p>
-                    <p><strong>Delivery Place:</strong> ${validatedData.product2.deliveryPlace}</p>
-                    ${validatedData.product2.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.product2.comments}</p>` : ''}
+                    <p><strong>Article Number:</strong> ${validatedProduct2.articleNumber}</p>
+                    <p><strong>Model:</strong> ${validatedProduct2.model}</p>
+                    <p><strong>Quantity:</strong> ${validatedProduct2.quantity}</p>
+                    <p><strong>Delivery Place:</strong> ${validatedProduct2.deliveryPlace}</p>
+                    ${validatedProduct2.comments ? `<p><strong>Additional Comments:</strong> ${validatedProduct2.comments}</p>` : ''}
+                    ${product2Image ? `<p><strong>Image Attached:</strong> ${product2Image.name}</p>` : ''}
                 ` : ''}
             `,
+            attachments,
         };
 
         // Send email

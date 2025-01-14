@@ -16,12 +16,25 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
 const productSchema = z.object({
     articleNumber: z.string().min(1, "Article number is required"),
     model: z.string().min(1, "Model is required"),
     quantity: z.number().min(1, "Quantity must be at least 1"),
     deliveryPlace: z.string().min(1, "Delivery place is required"),
     comments: z.string().optional(),
+    image: z
+        .any()
+        .optional()
+        .refine((files) => {
+            if (!files) return true;
+            if (!(files instanceof FileList)) return false;
+            if (files.length === 0) return true;
+            const file = files[0];
+            return file.size <= MAX_FILE_SIZE && ACCEPTED_IMAGE_TYPES.includes(file.type);
+        }, "Image must be less than 5MB and in JPG, PNG, or WebP format.")
 });
 
 const formSchema = z.object({
@@ -50,12 +63,29 @@ export default function FormPage() {
     const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         try {
+
+            const formData = new FormData();
+
+            // Add product1 data and image
+            const product1Data = { ...values.product1 };
+            delete product1Data.image;
+            formData.append('product1', JSON.stringify(product1Data));
+            if (values.product1.image?.[0]) {
+                formData.append('product1Image', values.product1.image[0]);
+            }
+
+            // Add product2 data and image if exists
+            if (values.product2) {
+                const product2Data = { ...values.product2 };
+                delete product2Data.image;
+                formData.append('product2', JSON.stringify(product2Data));
+                if (values.product2.image?.[0]) {
+                    formData.append('product2Image', values.product2.image[0]);
+                }
+            }
             const response = await fetch("/api/send", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(values),
+                body: formData,
             });
 
             const data = await response.json();
@@ -156,6 +186,51 @@ export default function FormPage() {
                     </FormItem>
                 )}
             />
+            {/* New image upload field */}
+            <FormField
+                control={form.control}
+                name={`${prefix}.image`}
+                render={({ field }) => {
+                    const value = field.value as FileList | null;
+                    return (
+                        <FormItem>
+                            <FormLabel>Product Image (Optional)</FormLabel>
+                            <FormControl>
+                                <div className="flex items-center gap-4">
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            field.onChange(e.target.files);
+                                        }}
+                                        className="hidden"
+                                        id={`${prefix}-image-input`}
+                                        ref={field.ref}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            document.getElementById(`${prefix}-image-input`)?.click();
+                                        }}
+                                        className="w-32"
+                                    >
+                                        Choose File
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground">
+                                        {value && value.length > 0
+                                            ? value[0].name
+                                            : "no file selected"}
+                                    </span>
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    );
+                }}
+            />
+
+
         </div>
     ), [form.control]);
 
