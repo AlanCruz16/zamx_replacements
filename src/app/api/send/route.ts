@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
         // Create email content
         const msg = {
-            to: 'adagocd@gmail.com',
+            to: 'marianasaldf@gmail.com',
             from: 'adagocd@gmail.com', // Replace with your SendGrid verified sender
             subject: 'New Quotation Request',
             html: `

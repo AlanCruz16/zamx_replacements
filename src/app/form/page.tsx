@@ -72,6 +72,45 @@ export default function FormPage() {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
             <h1 className="text-3xl font-bold mb-8">Quotation Request Form</h1>
+
+            {/* Information Section */}
+            <div className="max-w-2xl mx-auto text-justify space-y-6 mb-12">
+                <div className="bg-blue-50 rounded-lg p-6 shadow-sm">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
+                        How to Find Your Product Information
+                    </h2>
+
+                    <div className="space-y-4 text-gray-600">
+                        <p>
+                            The <span className="text-amber-500 font-bold">Article Number</span> of a ZIEHL-ABEGG product
+                            is necessary to identify the correct replacement. It's typically a 6-digit number that starts
+                            with 1 or 2.
+                        </p>
+
+                        <p>
+                            The <span className="text-blue-500 font-bold">Model Description</span> of the fan type is needed
+                            to confirm that the supplied part number matches the design of the requested unit.
+                        </p>
+
+                        <p>
+                            If the part number is not available, the <span className="text-pink-500 font-bold">Serial Number</span> will
+                            help us identify the unit. The serial number is typically 8 digits long and is also engraved
+                            on the motor stator.
+                        </p>
+                    </div>
+
+                    {/* Example Image */}
+                    <div className="mt-6">
+                        <p className="text-sm text-gray-500 mb-2">Reference Image:</p>
+                        <img
+                            src="/plate-example.jpg"
+                            alt="Data plate example"
+                            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full max-w-md">
                     <FormField
