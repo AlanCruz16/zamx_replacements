@@ -21,6 +21,7 @@ const formSchema = z.object({
     model: z.string().min(1, "Model is required"),
     quantity: z.number().min(1, "Quantity must be at least 1"),
     deliveryPlace: z.string().min(1, "Delivery place is required"),
+    comments: z.string().optional(),
 });
 
 export default function FormPage() {
@@ -34,6 +35,7 @@ export default function FormPage() {
             model: "",
             quantity: 0,
             deliveryPlace: "",
+            comments: "",
         },
     });
 
@@ -165,6 +167,23 @@ export default function FormPage() {
                                 <FormLabel>Delivery Place</FormLabel>
                                 <FormControl>
                                     <Input placeholder="Enter delivery place" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="comments"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Additional Comments (Optional)</FormLabel>
+                                <FormControl>
+                                    <textarea
+                                        {...field}
+                                        placeholder="Enter any additional information or special requirements"
+                                        className="flex min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

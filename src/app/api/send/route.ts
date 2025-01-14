@@ -10,6 +10,7 @@ const formSchema = z.object({
     model: z.string().min(1),
     quantity: z.number().min(1),
     deliveryPlace: z.string().min(1),
+    comments: z.string().optional()
 });
 
 export async function POST(request: Request) {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
 
         // Create email content
         const msg = {
-            to: 'marianasaldf@gmail.com',
+            to: 'adagocd@gmail.com',
             from: 'adagocd@gmail.com', // Replace with your SendGrid verified sender
             subject: 'New Quotation Request',
             html: `
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
                 <p><strong>Model:</strong> ${validatedData.model}</p>
                 <p><strong>Quantity:</strong> ${validatedData.quantity}</p>
                 <p><strong>Delivery Place:</strong> ${validatedData.deliveryPlace}</p>
+                ${validatedData.comments ? `<p><strong>Additional Comments:</strong> ${validatedData.comments}</p>` : ''}
             `,
         };
 
