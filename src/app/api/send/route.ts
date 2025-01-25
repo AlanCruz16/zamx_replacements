@@ -14,9 +14,20 @@ const productSchema = z.object({
     comments: z.string().optional(),
 });
 
+const userSchema = z.object({
+    fullName: z.string().min(1),
+    companyName: z.string().min(1),
+});
+
+
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();
+
+        // Parse user data from FormData
+        const userData = JSON.parse(formData.get('user') as string);
+        const validatedUser = userSchema.parse(userData);
+
 
         // Parse product data from FormData
         const product1 = JSON.parse(formData.get('product1') as string);
@@ -63,6 +74,11 @@ export async function POST(request: Request) {
             subject: 'New Quotation Request',
             html: `
                 <h2>New Quotation Request</h2>
+
+                <h3>Contact Information</h3>
+                <p><strong>Full Name:</strong> ${validatedUser.fullName}</p>
+                <p><strong>Company Name:</strong> ${validatedUser.companyName}</p>
+    
                 
                 <h3>Product 1</h3>
                 <p><strong>Article Number:</strong> ${validatedProduct1.articleNumber}</p>
