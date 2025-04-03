@@ -8,13 +8,13 @@ import { Footer } from '@/components/layout/Footer'
 export default async function Home() {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser() // Changed getSession to getUser and session to user
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <HomeHero isAuthenticated={!!session} />
+      <HomeHero isAuthenticated={!!user} /> {/* Changed session to user */}
       <Features />
-      <CTA isAuthenticated={!!session} />
+      <CTA isAuthenticated={!!user} /> {/* Changed session to user */}
       <Footer />
     </div>
   )

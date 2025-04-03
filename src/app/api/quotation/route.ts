@@ -22,8 +22,8 @@ export async function POST(request: Request) {
         const supabase = createClient(cookieStore)
 
         // Verify authentication
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
+        const { data: { user } } = await supabase.auth.getUser() // Changed getSession to getUser and session to user
+        if (!user) { // Changed session to user
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', user.id) // Changed session.user.id to user.id
             .single()
 
         // Insert quotation requests into database
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             .from('quotation_requests')
             .insert([
                 {
-                    user_id: session.user.id,
+                    user_id: user.id, // Changed session.user.id to user.id
                     article_number: validatedProduct1.articleNumber,
                     model: validatedProduct1.model,
                     quantity: validatedProduct1.quantity,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
                     comments: validatedProduct1.comments,
                 },
                 ...(validatedProduct2 ? [{
-                    user_id: session.user.id,
+                    user_id: user.id, // Changed session.user.id to user.id
                     article_number: validatedProduct2.articleNumber,
                     model: validatedProduct2.model,
                     quantity: validatedProduct2.quantity,
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         <h3>User Information</h3>
         <p><strong>Name:</strong> ${profile.full_name}</p>
         <p><strong>Company:</strong> ${profile.company_name}</p>
-        <p><strong>Email:</strong> ${session.user.email}</p>
+        <p><strong>Email:</strong> ${user.email}</p> {/* Changed session.user.email to user.email */}
         
         <h3>Product 1</h3>
         <p><strong>Article Number:</strong> ${validatedProduct1.articleNumber}</p>

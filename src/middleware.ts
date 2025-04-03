@@ -59,9 +59,9 @@ export async function middleware(request: NextRequest) {
 
     // Protected routes - add your protected routes here
     if (request.nextUrl.pathname.startsWith('/quotation')) {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { user } } = await supabase.auth.getUser() // Changed getSession to getUser and session to user
 
-        if (!session) {
+        if (!user) { // Changed session to user
             return NextResponse.redirect(new URL('/auth/sign-in', request.url))
         }
     }
