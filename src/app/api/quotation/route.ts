@@ -29,8 +29,10 @@ export async function POST(request: Request) {
                 { status: 401 }
             )
         }
+        console.log("Step 1: Authentication successful, User ID:", user.id);
 
         const formData = await request.formData()
+        console.log("Step 2: Form data parsed.");
 
         // Parse and validate products
         const product1 = JSON.parse(formData.get('product1') as string)
@@ -38,6 +40,8 @@ export async function POST(request: Request) {
 
         const validatedProduct1 = productSchema.parse(product1)
         const validatedProduct2 = product2 ? productSchema.parse(product2) : undefined
+        console.log("Step 3: Products validated.");
+        if (validatedProduct2) console.log("Step 3a: Product 2 validated.");
 
         // Get image files if they exist
         const product1Image = formData.get('product1Image') as File | null
@@ -49,11 +53,43 @@ export async function POST(request: Request) {
             .select('*')
             .eq('id', user.id) // Changed session.user.id to user.id
             .single()
+        console.log("Step 4: Profile fetched for user:", user.id);
 
-        // Insert quotation requests into database
-        const { error: insertError } = await supabase
+        // Add check for profile existence
+        if (!profile) {
+            console.error(`Profile not found for user ID: ${user.id}`);
+            // Throw an error to be caught by the main catch block, providing a clearer reason
+            throw new Error(`User profile not found for ID ${user.id}. Cannot proceed with quotation.`);
+        }
+
+        // Prepare data for insertion
+        const insertionData = [
+            {
+                user_id: user.id, // Changed session.user.id to user.id
+                article_number: validatedProduct1.articleNumber,
+                model: validatedProduct1.model,
+                quantity: validatedProduct1.quantity,
+                delivery_place: validatedProduct1.deliveryPlace,
+                comments: validatedProduct1.comments,
+            },
+            ...(validatedProduct2 ? [{
+                user_id: user.id, // Changed session.user.id to user.id
+                article_number: validatedProduct2.articleNumber,
+                model: validatedProduct2.model,
+                quantity: validatedProduct2.quantity,
+                delivery_place: validatedProduct2.deliveryPlace,
+                comments: validatedProduct2.comments,
+            }] : [])
+        ];
+        console.log("Step 4a: Preparing to insert data into DB:", JSON.stringify(insertionData, null, 2));
+
+        // Insert quotation requests into database and select the ID
+        const { data: insertedRequests, error: insertError } = await supabase
             .from('quotation_requests')
-            .insert([
+            .insert(insertionData) // Use the prepared data
+            .select('id') // Select the ID of the inserted record(s)
+
+        /* Remove original data structure from here
                 {
                     user_id: user.id, // Changed session.user.id to user.id
                     article_number: validatedProduct1.articleNumber,
@@ -62,17 +98,25 @@ export async function POST(request: Request) {
                     delivery_place: validatedProduct1.deliveryPlace,
                     comments: validatedProduct1.comments,
                 },
-                ...(validatedProduct2 ? [{
-                    user_id: user.id, // Changed session.user.id to user.id
-                    article_number: validatedProduct2.articleNumber,
-                    model: validatedProduct2.model,
-                    quantity: validatedProduct2.quantity,
-                    delivery_place: validatedProduct2.deliveryPlace,
-                    comments: validatedProduct2.comments,
-                }] : [])
-            ])
+         */
 
-        if (insertError) throw insertError
+        if (insertError) {
+            console.error("--- Supabase Insert Error ---");
+            console.error("Timestamp:", new Date().toISOString());
+            console.error("Supabase Error Object:", JSON.stringify(insertError, null, 2));
+            throw insertError; // Re-throw after logging
+        }
+        console.log("Step 5: Quotation inserted into DB.");
+
+        // Extract the first quotation ID (assuming batch insert might return multiple)
+        // We need one ID to reference the overall request in the email.
+        const quotationId = insertedRequests?.[0]?.id;
+        if (!quotationId) {
+            console.error("Failed to retrieve Quotation ID after insert.");
+            throw new Error("Could not retrieve Quotation ID after database insert.");
+        }
+        console.log("Step 5a: Retrieved Quotation ID:", quotationId);
+
 
         // Prepare email attachments
         const attachments = []
@@ -98,15 +142,24 @@ export async function POST(request: Request) {
                 disposition: 'attachment',
             })
         }
+        console.log("Step 6: Attachments prepared.", attachments.length > 0 ? `${attachments.length} attachments.` : "No attachments.");
 
         // Send email notification
         const msg = {
             to: process.env.NOTIFICATION_EMAIL!,
             from: process.env.SENDGRID_FROM_EMAIL!,
-            subject: 'New Quotation Request',
+            subject: `New Quotation Request - ID: ${quotationId}`, // Add ID to subject
             html: `
         <h2>New Quotation Request</h2>
-        
+
+        <p><strong>Quotation ID:</strong> ${quotationId}</p>
+        <hr>
+        <p><strong>ACTION REQUIRED:</strong> Please reply to this email with the price and lead time using the exact format below:</p>
+        <pre><code>Quotation ID: ${quotationId}
+Price: [Enter Selling Price Here, e.g., 123.45]
+Lead Time: [Enter Lead Time Here, e.g., 5 business days]</code></pre>
+        <hr>
+
         <h3>User Information</h3>
         <p><strong>Name:</strong> ${profile.full_name}</p>
         <p><strong>Company:</strong> ${profile.company_name}</p>
@@ -132,25 +185,60 @@ export async function POST(request: Request) {
       `,
             attachments,
         }
+        console.log("Step 7: Preparing to send email via SendGrid...");
+        console.log("SendGrid Message Object:", JSON.stringify(msg, null, 2)); // Log the message object
 
-        await sgMail.send(msg)
+        // Wrap the SendGrid call
+        try {
+            console.log("Step 7a: Calling sgMail.send()...");
+            await sgMail.send(msg);
+            console.log("Step 7b: sgMail.send() successful.");
+        } catch (sendGridError: any) {
+            console.error("--- SendGrid Specific Error ---");
+            console.error("Timestamp:", new Date().toISOString());
+            console.error("SendGrid Error Message:", sendGridError?.message);
+            console.error("SendGrid Error Stack:", sendGridError?.stack);
+            if (sendGridError.response) {
+                console.error('SendGrid Error Response Body:', sendGridError.response.body);
+            }
+            console.error("Full SendGrid Error Object:", JSON.stringify(sendGridError, null, 2));
+            // Re-throw the error to be caught by the main catch block
+            throw sendGridError;
+        }
+        console.log("Step 8: Email sent successfully."); // After successful SendGrid call
 
         return NextResponse.json({
             message: "Quotation request submitted successfully"
         })
-    } catch (error) {
-        console.error('Error processing quotation request:', error)
+    } catch (error: any) { // Added ': any' for better error property access
+        console.error('--- Error Processing Quotation Request ---');
+        console.error('Timestamp:', new Date().toISOString());
 
+        // Log basic error info
+        console.error('Error Message:', error?.message);
+        console.error('Error Stack:', error?.stack);
+
+        // Log the full error object structure for inspection
+        console.error('Full Error Object:', JSON.stringify(error, null, 2));
+
+        // Check specifically for SendGrid errors (they often have a 'response' property)
+        if (error.response) {
+            console.error('SendGrid Error Body:', error.response.body);
+        }
+
+        // Check for Zod validation errors
         if (error instanceof z.ZodError) {
+            console.error('Zod Validation Error Details:', error.errors);
             return NextResponse.json(
                 { error: 'Invalid form data', details: error.errors },
                 { status: 400 }
-            )
+            );
         }
 
+        // Generic internal server error response
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Internal server error. Check server logs for details.' }, // Updated message
             { status: 500 }
-        )
+        );
     }
 }
