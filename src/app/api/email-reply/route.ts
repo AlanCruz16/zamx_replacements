@@ -50,7 +50,8 @@ export async function POST(request: Request) {
 
             if (typeof emailText === 'string') {
                 // Regex to find the key-value pairs, allowing for whitespace variations
-                const idRegex = /Quotation ID:\s*(.+)/i;
+                // More specific regex for UUID format
+                const idRegex = /Quotation ID:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i;
                 const priceRegex = /Price:\s*(.+)/i;
                 const leadTimeRegex = /Lead Time:\s*(.+)/i;
 

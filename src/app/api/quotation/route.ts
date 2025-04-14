@@ -146,7 +146,7 @@ export async function POST(request: Request) {
 
         // Send email notification
         const msg = {
-            to: process.env.NOTIFICATION_EMAIL!,
+            to: user.email, // Use the authenticated user's email
             from: process.env.SENDGRID_FROM_EMAIL!,
             subject: `New Quotation Request - ID: ${quotationId}`, // Add ID to subject
             html: `

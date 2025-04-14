@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import sgMail from '@sendgrid/mail';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 
 // Initialize SendGrid with your API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
@@ -21,6 +23,39 @@ const userSchema = z.object({
 
 
 export async function POST(request: Request) {
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                get(name: string) {
+                    return cookieStore.get(name)?.value;
+                },
+            },
+        }
+    );
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error("Error fetching user or no user found:", userError);
+        return NextResponse.json(
+            { error: "Unauthorized: Could not retrieve user information" },
+            { status: 401 }
+        );
+    }
+
+    const userEmail = user.email;
+    if (!userEmail) {
+        console.error("User email not found:", user);
+        return NextResponse.json(
+            { error: "User email is missing" },
+            { status: 400 } // Or appropriate error status
+        );
+    }
+
+
     try {
         const formData = await request.formData();
 
@@ -69,8 +104,8 @@ export async function POST(request: Request) {
 
         // Create email content
         const msg = {
-            to: 'adagocd@gmail.com',
-            from: 'adagocd@gmail.com', // Replace with your SendGrid verified sender
+            to: userEmail, // Use the fetched user's email
+            from: process.env.SENDGRID_FROM_EMAIL!, // Use environment variable for sender
             subject: 'New Quotation Request',
             html: `
                 <h2>New Quotation Request</h2>
